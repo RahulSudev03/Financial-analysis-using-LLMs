@@ -1,39 +1,68 @@
 import streamlit as st
-from backend import get_huggingface_embeddings, query_pinecone, generate_response
+from backend import generate_response
 
-st.set_page_config(page_title = "Financial Analysis with LLMs", layout = "centered")
+st.set_page_config(page_title="Financial Analysis with LLMs", layout="centered")
 
-st.title("📊 Financial Analysis with LLMs")
+# App title and description
+st.title("📊 Stock Finder")
+st.write("""welcome to the stock finder application!""")
 
-st.write("""Welcome to Financial Analysis app!
-         Enter your query below to find companies and insights based on your needs!""")
-
+# User input for query
 query = st.text_input(
     label="💬 What would you like to search for?",
     placeholder="e.g., Find companies building data centers",
-    help="Type your question about companies, sectors, or industries, and press 'Submit'."
+    help="Type your question about companies, sectors, or industries, and press 'Search'."
 )
 
+with st.expander("🔧 Filters (Optional)"):
+    # Sector Filter
+    sector = st.selectbox(
+        label="Select Sector",
+        options=["All", "Technology", "Healthcare", "Financials", "Industrials", "Consumer Goods"],
+        index=0  # Default to "All"
+    )
+
+    # Market Cap Filter
+    market_cap = st.slider(
+        label="Market Capitalization (in billions)",
+        min_value=0,
+        max_value=1000,
+        value=(0, 1000),  # Default range
+        help="Adjust the range to filter companies based on their market cap in billions."
+    )
+
+    # Top K Matches Filter
+    top_k = st.slider(
+        label="Number of Matches (Top K)",
+        min_value=1,
+        max_value=20,
+        value= 10,  # Default to 10 matches
+        help="Set the number of top matches to return."
+    )
+    
+    
+
+# Placeholders for status and results
 status_placeholder = st.empty()
 results_placeholder = st.empty()
 
+# Search button
 if st.button("🔍 Search"):
     if query.strip():
         try:
-            # Step 1: Generate embeddings for the query
-            status_placeholder.write("Generating embeddings for your query...")
-            query_embedding = get_huggingface_embeddings(query)
+            # Display status message
+            status_placeholder.write("🔄 Processing your query...")
 
-            # Step 2: Query Pinecone for top matches
-            status_placeholder.write("Fetching top matches from the database...")
-            results = query_pinecone(query_embedding)
-            
+            # Filters for backend
+            filters = {"sector": sector, "min_cap": market_cap[0], "max_cap": market_cap[1], "top_k": top_k}
+
+            # Call the backend to generate the response
+            result = generate_response(query, filters.get("top_k"), filters)
+
+            # Clear the status message and display results
             status_placeholder.empty()
-
-            # Step 3: Display results
-            results_placeholder.subheader("Answer: ")
-            results_placeholder.write(generate_response(query))
-
+            results_placeholder.subheader("Answer:")
+            results_placeholder.write(result)
 
         except Exception as e:
             st.error(f"An error occurred while processing your query: {e}")
